@@ -15,7 +15,7 @@ unittest {
 	import parser, std.stdio;
 	writeln("########### gen/expr.d");
 	
-	Scope root_scp;
+	auto root_scp = new Scope(SCP.func, null, null);
 	{
 		auto p = new Parser(`
 		func mult(n, m) {
@@ -24,8 +24,7 @@ unittest {
 		}
 		`, "mult");
 		auto fd = p.parseFuncDecl();
-		root_scp = generate_scope(fd);
-		root_scp.kind = SCP.func;
+		set_scope(fd, root_scp);
 	}
 	
 	BlockExpr exp;
@@ -37,16 +36,16 @@ unittest {
 	}
 	
 	uint tmp_num = 0;
-	auto ops = exp_code_gen(exp, root_scp, &tmp_num);
+	auto ops = expr_code_gen(exp, root_scp, &tmp_num);
 	foreach (op; ops) writeln(op);
 	
 }
 
 // the temp variable number starts from tmp_num
-Operation[] exp_code_gen(Expr exp, Scope scp, uint* tmp_num) {
-	if (exp) {
+Operation[] expr_code_gen(Expr expr, Scope scp, uint* tmp_num) {
+	if (expr) {
 		auto eg = new ExprGen(scp, tmp_num);
-		exp.accept(eg);
+		expr.accept(eg);
 		return eg.result;
 	}
 	else return [];
@@ -75,10 +74,10 @@ private class ExprGen : GeneralVisitor {
 			TOK.div: OpCode.div,
 			TOK.mod: OpCode.mod,
 		]) {
-			e.exp0.accept(this);
+			e.expr0.accept(this);
 			auto tn0 = *tmp_num-1;
 			
-			e.exp1.accept(this);
+			e.expr1.accept(this);
 			auto tn1 = *tmp_num-1;
 			
 			result ~= new Operation(
@@ -93,11 +92,11 @@ private class ExprGen : GeneralVisitor {
 		
 		// assign
 		else if (e.op == TOK.ass) {
-			e.exp1.accept(this);
+			e.expr1.accept(this);
 			auto tn_right = *tmp_num-1;
 			
 			is_lval = true;
-			e.exp0.accept(this);
+			e.expr0.accept(this);
 			auto tn_left = *tmp_num-1;
 			
 			result ~= Operation.move(new Temp(global.VALUE_SIZE, tn_right), new Temp(global.VALUE_SIZE, tn_left), true);
@@ -110,7 +109,7 @@ private class ExprGen : GeneralVisitor {
 		if (auto op = e.op in [
 			TOK.sub: OpCode.inv,
 		]) {
-			e.exp.accept(this);
+			e.expr.accept(this);
 			auto tn = *tmp_num-1;
 			
 			result ~= new Operation(
@@ -128,9 +127,11 @@ private class ExprGen : GeneralVisitor {
 	
 	/*
 	function call :
-	push all arguments
+	start_call
+	{push the environment pointer}
+	{push this}
+	{push all arguments}
 	goto [label]
-	pop results from stack
 	*/
 	override void visit(FuncExpr e) {
 		// TODO we only support simple function call, not something like funcs[i](0, 2, 3)
@@ -155,6 +156,20 @@ private class ExprGen : GeneralVisitor {
 		
 		auto sym = cast(Function) fn_sym;	// function symbol
 		
+		
+		// (TODO need to fix, for example recursive calls)
+		// store the s0 in order to push environment pointer
+		result ~= Operation.move(new Stack(0, 0), new Temp(PTR_SIZE, *tmp_num), false);
+		
+		// start_call
+		result ~= Operation.start_call();
+		
+		// push the environment pointer
+		result ~= Operation.push64(new Temp(PTR_SIZE, *tmp_num));
+		++*tmp_num;
+		
+		// TODO push this
+		
 		// push arguments
 		foreach (arg; e.args) {
 			if (arg) arg.accept(this);
@@ -175,6 +190,11 @@ private class ExprGen : GeneralVisitor {
 		scope(exit) scp = old_scp;
 		
 		scp = e.scp;
+		
+		// first allocate the size of stack
+		auto stack_size = e.is_func_body ? scp.func_body_size : scp.stack_size;
+		result ~= Operation.push(new Int(PTR_SIZE, stack_size));
+		scope(exit) if (!e.is_func_body) result ~= Operation.pop(new Int(PTR_SIZE, stack_size));
 		
 		foreach (stmt; e.stmts) {
 			result ~= stmt_code_gen(stmt, scp, tmp_num);

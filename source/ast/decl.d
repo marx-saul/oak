@@ -19,6 +19,17 @@ class Decl : Stmt {
 	override void accept(Visitor v) { v.visit(this); }
 }
 
+class ScopeDecl : Decl {
+	this (Token id, STMT type, LOC loc = LOC.init) {
+		super(id, type, loc);
+	}
+	
+	import sem.scope_;
+	Scope scp;
+	
+	override void accept(Visitor v) { v.visit(this); }
+}
+
 class LetDecl : Decl {
 	Expr expr;
 	

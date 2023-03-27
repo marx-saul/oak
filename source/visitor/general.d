@@ -9,6 +9,7 @@ class GeneralVisitor : Visitor {
 	
 	// decl.d
 	override void visit(Decl x) { visit(cast(Node) x); }
+	override void visit(ScopeDecl x) { visit(cast(Decl) x); }
 	override void visit(LetDecl x) { visit(cast(Decl) x); }
 	
 	// expr.d
@@ -29,4 +30,15 @@ class GeneralVisitor : Visitor {
 	override void visit(Stmt x) { visit(cast(Node) x); }
 	override void visit(ExprStmt x) { visit(cast(Stmt) x); }
 	override void visit(ReturnStmt x) { visit(cast(Stmt) x); }
+	
+	// type.d
+	override void visit(Type x) { visit(cast(Node) x); }
+	override void visit(TupleType x) { visit(cast(Type) x); }
+	override void visit(ListType x) { visit(cast(Type) x); }
+	override void visit(PtrType x) { visit(cast(Type) x); }
+	override void visit(FuncType x) { visit(cast(Type) x); }
+	override void visit(IdType x) { visit(cast(Type) x); }
+	override void visit(UnitType x) { visit(cast(Type) x); }
+	override void visit(Int32Type x) { visit(cast(Type) x); }
+	override void visit(Int64Type x) { visit(cast(Type) x); }
 }

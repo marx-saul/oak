@@ -117,7 +117,9 @@ enum OpCode {
 	
 	ifgo,		// ifgo Var Label : if Var != 0 then goto Label
 	//goto_,
+	start_call,
 	
+	push,		// push N : push N byte
 	push32,
 	push64,
 	pop,		// pop N : pop N byte
@@ -200,6 +202,14 @@ class Operation {
 				result ~= "if " ~ s1.toString() ~ " goto " ~ s2.toString();
 			break;
 		
+		case start_call:
+			result = "start_call";
+			break;
+		
+		case push:
+			result ~= "push " ~ s1.toString();
+			break;
+		
 		case push32:
 			result ~= "push32 " ~ s1.toString();
 			break;
@@ -274,7 +284,13 @@ class Operation {
 		assert (s2 && s2.kind == SRC.label);
 		return new Operation(OpCode.ifgo, new Int(4, 1), s2, null, false);
 	}
+	static Operation start_call() {
+		return new Operation(OpCode.start_call, null, null, null, false);
+	}
 	
+	static Operation push(Source s1) {
+		return new Operation(OpCode.push, s1, null, null, false);
+	}
 	static Operation push32(Source s1) {
 		return new Operation(OpCode.push32, s1, null, null, false);
 	}
@@ -341,18 +357,37 @@ class CodeSection {
 		else assert(0);
 	}
 	
-	uint tmp_num = 0;
-	uint result_num = 0;
-	uint label_num = 0;
-	uint new_tmp() @property {
-		return tmp_num++;
+	// the number of temp variables
+	uint tmp_num() @property {
+		import std.algorithm;
+		if (!tmp_num_calculated) {
+			foreach (op; code) {
+				if (op.dest && op.dest.kind == SRC.temp) _tmp_num = max(_tmp_num, (cast(Temp) op.dest).num);
+			}
+		}
+		return _tmp_num+1;
 	}
-	uint new_result() @property {
-		return result_num++;
+	private uint _tmp_num;
+	private bool tmp_num_calculated;
+	
+	// the number of result variables
+	uint result_num() @property {
+		import std.algorithm;
+		if (!result_num_calculated) {
+			foreach (op; code) {
+				if (op.dest && op.dest.kind == SRC.result) _result_num = max(_result_num, (cast(Result) op.dest).num);
+			}
+		}
+		return _result_num+1;
 	}
+	private uint _result_num;
+	private bool result_num_calculated;
+	
+	// for requesting new labels
+	private uint _label_num = 0;
 	string new_label() @property {
 		import std.conv: to;
-		return (label_num++).to!string;
+		return (_label_num++).to!string;
 	}
 }
 
@@ -416,18 +451,7 @@ CodeSection to_code_sec(string str) {
 		}
 	}
 	
-	uint tnum, rnum;
-	foreach (op; code) {
-		if (auto tmp = cast(Temp) op.dest) {
-			if (tnum < tmp.num) tnum = tmp.num;
-		}
-		if (auto res = cast(Result) op.dest) {
-			if (rnum < res.num) rnum = res.num;
-		}
-	}
 	auto result = new CodeSection(name, code);
-	result.tmp_num = tnum + 1;
-	result.result_num = rnum + 1;
 	return result;
 }
 
@@ -449,6 +473,12 @@ Operation to_operation(string str) {
 		assert(s2.kind == SRC.label);
 		return Operation.goto_(s2);
 	
+	case "start_call":
+		return Operation.start_call();
+	
+	case "push":
+		return Operation.push(strs[1].to_source());
+		
 	case "push32":
 		return Operation.push32(strs[1].to_source());
 		
@@ -530,7 +560,7 @@ Operation to_operation(string str) {
 	}
 }
 
-immutable DEFAULT_SIZE = "32";
+private immutable DEFAULT_SIZE = "32";
 
 Source to_source(string str) {
 	import std.typecons, std.conv: to;

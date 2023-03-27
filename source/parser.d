@@ -31,19 +31,14 @@ class Parser {
 		next();
 	}
 	
+	/*
+	********* Expression *********
+	*/
 	static bool isFirstofExpr(TOK kind) {
 		with (TOK)
 		return kind.among!(id, int_, real_, string_lit, add, sub, mul, lpar, lbra, lblo, access, if_) != 0;
 	}
 	
-	static bool isFirstofStmt(TOK kind) {
-		with (TOK)
-		return isFirstofExpr(kind) ||
-			kind.among!(let, func, return_, ) != 0;
-	}
-	/*
-	********* Expression *********
-	*/
 	Expr parseExpr() {
 		return parseAssignExpr();
 	}
@@ -176,6 +171,109 @@ class Parser {
 		}
 		
 	}
+	/*
+	********* Type *********
+	*/
+	static bool isFirstofType(TOK kind) {
+		with (TOK)
+		return kind.among!(id, int32, int64, amp, lbra, lpar) != 0;
+	}
+	
+	Type parseType() {
+		return parseFuncType();
+	}
+	/*
+	FuncType:
+		Type -> Type
+		(Type, Type, Type, ...) -> Type
+		((Type, Type, Type, ...)) -> Type
+	*/
+	Type parseFuncType() {
+		auto t = parsePtrType();
+		if (token().kind == TOK.arrow) {
+			auto op = token();
+			next();
+			if (t is null) {
+				t = new FuncType([], parseFuncType(), op.loc);
+			}
+			else if (typeid(t) == typeid(TupleType)) {
+				if (t.paren) t = new FuncType([t], parseFuncType(), op.loc);
+				else t = new FuncType((cast(TupleType) t).mems, parseFuncType(), op.loc);
+			}
+			else if (typeid(t) == typeid(UnitType)) {
+				t = new FuncType([], parseFuncType(), op.loc);
+			}
+			else
+				t = new FuncType([t], parseFuncType(), op.loc);
+		}
+		return t;
+	}
+	
+	Type parsePtrType() {
+		with (TOK)
+		if (token().kind == TOK.amp) {
+			auto op = token();
+			next();
+			auto t = parsePtrType();
+			return new PtrType(t, op.loc);
+		}
+		else return parseAtomType();
+	}
+	
+	Type parseAtomType() {
+		with (TOK)
+		switch (token().kind) {
+		case id:
+			auto id = token();
+			next();
+			return new IdType(id);
+			
+		case int32:
+			auto loc = token().loc;
+			next();
+			return new Int32Type(loc);
+			
+		case int64:
+			auto loc = token().loc;
+			next();
+			return new Int64Type(loc);
+			
+		case lpar:
+			auto loc = token().loc;
+			next();
+			if (token().kind == rpar) {
+				next();
+				return new UnitType(loc);
+			}
+			
+			Type t;
+			Type[] members;
+			while (isFirstofType(token().kind)) {
+				members ~= parseType();
+				if (token.kind == TOK.com) next();
+			}
+			if (members.length == 1) {
+				members[0].paren = true;
+				t = members[0];
+			}
+			else t = new TupleType(members, loc);
+			check(rpar);
+			
+			return t;
+		
+		case lbra:
+			auto loc = token().loc;
+			next();
+			auto type = parseType();
+			check(rbra);
+			return new ListType(type, loc);
+		
+		default:
+			message.error(token().loc, "A Type expected, not " ~ token().kind.to!string);
+			next();
+			return null;
+		}
+	}
 	
 	/*
 	********* Statement *********
@@ -185,6 +283,13 @@ class Parser {
 		FuncDecl
 		ReturnStmt
 	*/
+	
+	static bool isFirstofStmt(TOK kind) {
+		with (TOK)
+		return isFirstofExpr(kind) ||
+			kind.among!(let, func, return_, ) != 0;
+	}
+	
 	Stmt[] parseStmt() {
 		auto loc = token().loc;
 		

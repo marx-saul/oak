@@ -10,40 +10,10 @@ unittest {
 	writeln("########### gen/exec.d");
 	auto cs_main = to_code_sec(
 `[main]
-t0 = 8
-t1 = t0 + 8
-t2 = t1 - 9
-t3 = t2 * 10
-t4 = t3 / 11
-t5 = t4 % 12
-t6 = - t5
-
-push32 t5
-push32 t6
-pop32 t7
-t8(64) = s0
-*t8(64) = t7
-t9 = *(32) t8
-
-@here
-ifgo t9 @L1
-halt
-
-@L1
-goto @L3
-halt
-
-@L3
-access log32 t9
-
-pop 4
-
-@L4
-push32 49
-push32 13
-
+start_call
+push32 257
+push32 34
 goto [f]
-
 pop32 t0
 access log32 t0
 
@@ -52,11 +22,10 @@ halt`
 
 	auto cs_func = to_code_sec(
 `[f]
-t0 = *(32) s-8
-t1 = *(32) s-4
+t0 = *(32) s0
+t1 = *(32) s4
 t2 = t0 % t1
 r0 = t2
-pop 8
 ret`);
 	
 	auto program = new Program([cs_main, cs_func], []);
@@ -135,7 +104,7 @@ auto executer(Program program, const size_t stack_size = 2 ^^ 20) {
 		case stack:
 			auto t = cast(Stack) s;
 			SourceVal val;
-			val.size = 8;
+			val.size = PTR_SIZE;
 			val.int64 = cast(long) (stack_ptrs[$-1] + t.address);
 			return val;
 		
@@ -281,9 +250,10 @@ auto executer(Program program, const size_t stack_size = 2 ^^ 20) {
 				if (ls.is_sec) {
 					sec_stacks ~= program.sec_address(ls.name);
 					code_ptrs ~= 0;
-					stack_ptrs ~= stack_top;
+					//stack_ptrs ~= stack_top;
 					tmps ~= [ new SourceVal[code_sec.tmp_num] ];
 					results ~= [ new SourceVal[code_sec.result_num] ];
+					// stack pointer is stocked by user using "start_call"
 				}
 				// label call
 				else {
@@ -292,7 +262,15 @@ auto executer(Program program, const size_t stack_size = 2 ^^ 20) {
 				return 0;
 			}
 			break;
+		
+		case start_call:
+			stack_ptrs ~= stack_top;
+			break;
 	
+		case push:
+			stack_top += get_val(operation.s1).int64;
+			break;
+			
 		case push32:
 			change_stack_ptr(4);
 			*to_int32_ptr(stack_top-4) = get_val(operation.s1).int32;
@@ -324,6 +302,11 @@ auto executer(Program program, const size_t stack_size = 2 ^^ 20) {
 			break;
 			
 		case ret:
+			sec_stacks.length -= 1;
+			code_ptrs.length -= 1;
+			stack_ptrs.length -= 1;
+			tmps.length -= 1;
+			
 			// rollback the stack pointer
 			stack_top = stack_ptrs[$-1];
 			// push results
@@ -340,11 +323,9 @@ auto executer(Program program, const size_t stack_size = 2 ^^ 20) {
 				default: assert(0);
 				}
 			}
-			sec_stacks.length -= 1;
-			code_ptrs.length -= 1;
-			stack_ptrs.length -= 1;
-			tmps.length -= 1;
+			
 			results.length -= 1;
+			
 			break;
 	
 		case halt:

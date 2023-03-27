@@ -14,7 +14,7 @@ class ArgDecl : Decl {
 	override void accept(Visitor v) { v.visit(this); }
 }
 
-class FuncDecl : Decl {
+class FuncDecl : ScopeDecl {
 	ArgDecl[] args;
 	BlockExpr body;
 	
@@ -25,7 +25,4 @@ class FuncDecl : Decl {
 	}
 	
 	override void accept(Visitor v) { v.visit(this); }
-	
-	import sem.scope_;
-	Scope scp;		// the scope this function defines
 }

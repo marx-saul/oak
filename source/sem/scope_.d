@@ -2,7 +2,7 @@ module sem.scope_;
 
 import sem.symbol;
 import ast;
-import visitor.permissive;
+import visitor.general;
 
 enum SCP {
 	root,	// module
@@ -20,6 +20,11 @@ class Scope {
 	Symbol[string] table;	// for searching
 	
 	bool stack_calced;		// for gen.func.calc_stack
+	
+	this () {
+		this.symbols = [];
+		Symbol[string] table; this.table = table;
+	}
 	
 	this (SCP kind, Node node, Scope parent) {
 		this.kind = kind;
@@ -50,7 +55,7 @@ class Scope {
 		return null;
 	}
 	
-	// how many function scopes between this and scp
+	// how many stack frames between this and scp
 	// -1 : not an ancestor
 	// 0 : itself, 1 : parent function, 2 : grandparent function, ...
 	uint stack_depth(Scope scp) {
@@ -63,71 +68,103 @@ class Scope {
 		}
 		return i;
 	}
+	
+	// set the stack address of each symbols
+	void calculate_stack() {
+		auto current = this;
+		if (!_is_stack_calculated) {
+			while (current) {
+				if (current.kind == SCP.func) {
+					import sem.func;
+					calc_stack_address(cast (FuncDecl) node);
+					return;
+				}
+				else current = current.parent;
+			}
+		}
+	}
+	bool _is_stack_calculated;
+	
+	// the size of all variables defined in this scope
+	uint _stack_size;
+	uint stack_size() @property {
+		calculate_stack();
+		return _stack_size;
+	}
+	// when the scope is a function, func_body_size + (arguments size) = stack_size
+	uint _func_body_size;
+	uint func_body_size() @property {
+		calculate_stack();
+		return _func_body_size;
+	}
+	
 }
 
-// set scopes and symbols
+// set scopes and symbols recursively
 void set_scope(Node node, Scope root) {
 	auto sg = new ScopeGenerator(root);
 	node.accept(sg);
-	assert(root is sg.result);
+	assert(root is sg.root);
 }
 
-Scope generate_scope(Node node) {
-	auto root = new Scope(SCP.root, node, null);
-	set_scope(node, root);
-	return root;
-}
-
-class ScopeGenerator : PermissiveVisitor {
-	alias visit = PermissiveVisitor.visit;
-	
-	Scope result;
+class ScopeGenerator : GeneralVisitor {
+	Scope root;
 	this (Scope root = null) {
-		result = root;
+		this.root = root;
 	}
 	
-	// symbols
-	override void visit(LetDecl node) {
-		result.add_symbol(new Variable(node, result));
-	}
-	override void visit(ArgDecl node) {
-		result.add_symbol(new Argument(node, result));
+	alias visit = GeneralVisitor.visit;
+	
+	// decl.d
+	override void visit(LetDecl x) {
+		root.add_symbol(new Variable(x, root));
 	}
 	
-	// scope symbols
-	override void visit(FuncDecl node) {
-		auto parent = result;
-		scope(exit) result = parent;
-		
-		// create new scope
-		result = new Scope(SCP.func, node, parent);
-		// set this scope to parent
-		parent.add_symbol(new Function(node, parent, result));
-		
-		// set scope
-		node.scp = result;
-		// sub nodes
-		foreach (arg; node.args) {
+	// expr.d
+	override void visit(BinExpr x) {
+		if (x.expr0) x.expr0.accept(this);
+		if (x.expr1) x.expr1.accept(this);
+	}
+	override void visit(UnExpr x) {
+		if (x.expr) x.expr.accept(this);
+	}
+	override void visit(FuncExpr x) {
+		if (x.fn) x.fn.accept(this);
+		foreach (arg; x.args)
 			if (arg) arg.accept(this);
-		}
-		if (node.body) node.body.accept(this);
 	}
-	
-	// others
-	override void visit(BlockExpr node) {
-		if (!node.is_func_body) result = new Scope(SCP.expr, node, result);
-		scope(exit) if (!node.is_func_body) result = result.parent;
+	override void visit(BlockExpr x) {
+		if (!x.is_func_body) root = new Scope(SCP.expr, x, root);
+		scope(exit) if (!x.is_func_body) root = root.parent;
 		
-		// set scope
-		node.scp = result;
-		// sub nodes
-		foreach (stmt; node.stmts) {
+		x.scp = root;
+		foreach (stmt; x.stmts) {
 			if (stmt) stmt.accept(this);
 		}
 	}
+	override void visit(IntExpr x) {}
+	override void visit(IdExpr x) {}
+	override void visit(UnitExpr x) {}
 	
-	override void visit(ExprStmt node) {
-		if (node.expr) node.expr.accept(this);
+	// func.d
+	override void visit(ArgDecl x) {}	// done in FuncDecl
+	override void visit(FuncDecl x) {
+		root = new Scope(SCP.func, x, root);
+		scope(exit) root = root.parent;
+		
+		root.parent.add_symbol(new Function(x, root.parent, root));
+		x.scp = root;
+		foreach (arg; x.args) {
+			root.add_symbol(new Argument(arg, root));
+		}
+		if (x.body) x.body.accept(this);
 	}
 	
+	// stmt.d
+	override void visit(ExprStmt x) {
+		if (x.expr) x.expr.accept(this);
+	}
+	override void visit(ReturnStmt x) {
+		if (x.expr) x.expr.accept(this);
+	}
 }

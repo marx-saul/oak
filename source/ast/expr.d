@@ -2,6 +2,7 @@ module ast.expr;
 
 import ast.node;
 import ast.stmt;
+import ast.type;
 import visitor.visitor;
 import token;
 
@@ -12,22 +13,25 @@ class Expr : Node {
 		super(loc);
 	}
 	
-	// byte size of the value of this expression
-	uint size() @property { return 4; }
+	Type _type;
+	Type type() @property {
+		if (!_type) _type = new Int32Type();
+		return _type;
+	}
 	
 	override void accept(Visitor v) { v.visit(this); }
 }
 
 // e0 op e1
 final class BinExpr : Expr {
-	Expr exp0;
+	Expr expr0;
 	TOK op;
-	Expr exp1;
+	Expr expr1;
 	
-	this (Expr exp0, TOK op, Expr exp1, LOC loc = LOC.init) {
-		this.exp0 = exp0;
+	this (Expr expr0, TOK op, Expr expr1, LOC loc = LOC.init) {
+		this.expr0 = expr0;
 		this.op = op;
-		this.exp1 = exp1;
+		this.expr1 = expr1;
 		super(loc);
 	}
 	
@@ -37,11 +41,11 @@ final class BinExpr : Expr {
 // op e0
 final class UnExpr : Expr {
 	TOK op;
-	Expr exp;
+	Expr expr;
 	
-	this (TOK op, Expr exp, LOC loc = LOC.init) {
+	this (TOK op, Expr expr, LOC loc = LOC.init) {
 		this.op = op;
-		this.exp = exp;
+		this.expr = expr;
 		super(loc);
 	}
 	

@@ -15,6 +15,7 @@ enum TOK : ubyte {
 	func,
 	if_,
 	int32,
+	int64,
 	let,
 	return_,
 	
@@ -33,6 +34,13 @@ enum TOK : ubyte {
 	mul,		// *
 	div,		// /
 	mod,		// %
+	
+	amp,		// &
+	
+	bs,			// \
+	
+	arrow,		// ->
+	mapsto,		// =>
 	
 	dot,		// .
 	

@@ -8,8 +8,9 @@ class PermissiveVisitor : Visitor {
 	override void visit(Node x) {}
 	
 	// decl.d
-	override void visit(Decl x) { }
-	override void visit(LetDecl x) { }
+	override void visit(Decl x) {}
+	override void visit(ScopeDecl x) {}
+	override void visit(LetDecl x) {}
 	
 	// expr.d
 	override void visit(Expr x) {}
@@ -29,4 +30,15 @@ class PermissiveVisitor : Visitor {
 	override void visit(Stmt x) {}
 	override void visit(ExprStmt x) {}
 	override void visit(ReturnStmt x) {}
+	
+	// type.d
+	override void visit(Type x) {}
+	override void visit(TupleType x) {}
+	override void visit(ListType x) {}
+	override void visit(PtrType x) {}
+	override void visit(FuncType x) {}
+	override void visit(IdType x) {}
+	override void visit(UnitType x) {}
+	override void visit(Int32Type x) {}
+	override void visit(Int64Type x) {}
 }

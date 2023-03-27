@@ -5,4 +5,5 @@ public import
 	ast.expr,
 	ast.func,
 	ast.node,
-	ast.stmt;
+	ast.stmt,
+	ast.type;

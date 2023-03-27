@@ -29,16 +29,49 @@ Token[] getTokens(string source, string path = "") {
 Token getToken(ref string source, ref size_t index, ref size_t line) {
 	size_t ptr = 0;
 	
-	// ignore spaces and comments (TODO)
-	while (source.length > 0 && isWhite(source[0])) {
-		if (source[0] == '\n') {
-			++line;
-			index = 0;
+	bool lookahead(char c) {
+		if (source.length >= 2) return source[1] == c;
+		else return false;
+	}
+	// ignore spaces and comment
+	while (1) {
+		// spaces
+		while (source.length > 0 && isWhite(source[0]))
+			source = source[1 .. $];
+		// not a comment
+		if (source.length == 0 || source[0] != '/') break;
+		// one line comment
+		else if (lookahead('/')) {
+			source = source[2 .. $];	 // get rid of //
+			while (source.length > 0 && source[0] != '\n')
+				source = source[1 .. $];
 		}
-		else {
-			++index;
+		// multiple line comment
+		else if (lookahead('*')) {
+			source = source[2 .. $];	 // get rid of /*
+			while (source.length >= 2 && !(source[0] == '*' && source[1] == '/'))
+				source = source[1 .. $];
+			// (TODO) not closed by */ error
+			//if (source.length <= 1) {  }
+			if (source.length >= 2) source = source[2 .. $];	 // get rid of */
 		}
-		source = source[1 .. $];
+		// nested comment
+		else if (lookahead('+')) {
+			source = source[2 .. $]; // get rid of /
+			uint comment_depth = 1;
+			while (comment_depth > 0 && source.length > 0) {
+				if	  (source[0] == '+' && lookahead('/')) {
+					--comment_depth;
+					source = source[2 .. $];	 // get rid of +
+				}
+				else if (source[0] == '/' && lookahead('+')) {
+					++comment_depth;
+					source = source[2 .. $];	 // get rid of /
+				}
+				else source = source[1 .. $];
+			}
+		}
+		else break;
 	}
 	
 	Token result;
@@ -61,6 +94,7 @@ Token getToken(ref string source, ref size_t index, ref size_t line) {
 			result.str == "func" ?			func :
 			result.str == "if" ?			if_ :
 			result.str == "int32" ?			int32 :
+			result.str == "int64" ?			int64 :
 			result.str == "let" ?			let :
 			result.str == "return" ?		return_:
 			result.str == "__access" ?		access :
@@ -94,6 +128,10 @@ Token getToken(ref string source, ref size_t index, ref size_t line) {
 			"*"  : mul,
 			"/"  : div,
 			"%"  : mod,
+			"&"  : amp,
+			"\\" : bs,
+			"->" : arrow,
+			"=>" : mapsto,
 			"."  : dot,
 			":"  : col,
 			";"  : semcol,

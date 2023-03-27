@@ -9,6 +9,7 @@ abstract class Visitor {
 	
 	// decl.d
 	void visit(Decl);
+	void visit(ScopeDecl);
 	void visit(LetDecl);
 	
 	// expr.d
@@ -29,4 +30,15 @@ abstract class Visitor {
 	void visit(Stmt);
 	void visit(ExprStmt);
 	void visit(ReturnStmt);
+	
+	// type.d
+	void visit(Type);
+	void visit(TupleType);
+	void visit(ListType);
+	void visit(PtrType);
+	void visit(FuncType);
+	void visit(IdType);
+	void visit(UnitType);
+	void visit(Int32Type);
+	void visit(Int64Type);
 }

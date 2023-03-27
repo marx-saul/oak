@@ -38,16 +38,19 @@ private class StmtGen : GeneralVisitor {
 	alias visit = GeneralVisitor.visit;
 	
 	override void visit(ExprStmt node) {
-		if (node.expr) result ~= exp_code_gen(node.expr, scp, tmp_num);
+		if (node.expr) result ~= expr_code_gen(node.expr, scp, tmp_num);
 	}
 	
-	// function return (for specification, see gen/expr.d)
+	// function return
+	// pop (the size of arguments)
+	// ret
 	override void visit(ReturnStmt node) {
 		// return the expression (TODO)
 		if (node.expr) {
 			// need to separate for *tmp_num to change
-			result ~= exp_code_gen(node.expr, scp, tmp_num);
+			result ~= expr_code_gen(node.expr, scp, tmp_num);
 			result ~= Operation.move(new Temp(global.VALUE_SIZE, *tmp_num-1), new Result(global.VALUE_SIZE, 0), false);	
+			//result ~= Operation.pop(nwe Int());
 			result ~= Operation.ret();
 		}
 	}
@@ -55,13 +58,12 @@ private class StmtGen : GeneralVisitor {
 	// assign an expression to the stack
 	override void visit(LetDecl node) {
 		result ~=
-			exp_code_gen(node.expr, scp, tmp_num)
+			expr_code_gen(node.expr, scp, tmp_num)
 		 ~ [Operation.move(new Temp(global.VALUE_SIZE, *tmp_num), new Stack(global.VALUE_SIZE, node.sym.address), true)];
 	}
 	
 	override void visit(FuncDecl node) {
 		assert(0, "inner function has not been implemented");
-		
 	}
 }
 
