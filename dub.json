@@ -3,7 +3,7 @@
 		"angol-mois"
 	],
 	"copyright": "Copyright © 2023, angol-mois",
-	"description": "A minimal D application.",
-	"license": "proprietary",
+	"description": "A programming language.",
+	"license": "MIT",
 	"name": "oak"
 }
