@@ -8,9 +8,27 @@ import std.conv: to;
 import std.algorithm;
 
 unittest {
+	import std.stdio;
+	writeln("########### parser.d");
 	{
-		scope p = new Parser("a = a + { func suc(n) { n+1 } suc(suc(8*a)) }");
-		p.parseExpr();
+		scope p = new Parser("
+			let counter = 0;
+			let x = 0;
+			
+			func main() {
+				let a = 23;
+				let b = 47;
+				let c = multiply(a, b);
+				return c;
+			}
+			
+			func multiply(n, m) {
+				counter = counter + 1;
+				let result = n * m;
+				result
+			}
+		", "parser-1");
+		auto mod = p.parseMod();
 	}
 }
 
@@ -29,6 +47,16 @@ class Parser {
 			message.error(token().loc, kind.to!string ~ " expected, not " ~ token().kind.to!string);
 		}
 		next();
+	}
+	
+	/*
+	********* Module **********
+	*/
+	Mod parseMod() {
+		auto loc = token().loc;
+		auto decls = parseDecls();
+		check(TOK.eof);
+		return new Mod(Token.init, decls, loc);
 	}
 	
 	/*
@@ -148,28 +176,47 @@ class Parser {
 		check(TOK.lblo);
 		
 		Stmt[] stmts;
+		bool has_value;
 		with (TOK)
 		while (true) {
+			// Statment
 			if (isFirstofStmt(token().kind)) {
 				stmts ~= parseStmt();
-				
 			}
-			// end with semicolon
+			// Expression
+			else if (isFirstofExpr(token().kind)) {
+				auto exprloc = token().loc;
+				auto expr = parseExpr();
+				stmts ~= new ExprStmt(expr, exprloc);
+				
+				// expression followed by }
+				if (token().kind == rblo) {
+					next();
+					has_value = true;
+					break;
+				}
+				// expression followed by ;
+				else if (token().kind == semcol) {
+					next();
+					continue;
+				}
+				// otherwise error
+				else {
+					message.error(token().loc, "} or ; expected after an expression in { ... }, not " ~ token().str);
+					return null;
+				}
+			}
 			else if (token().kind == rblo) {
-				auto rblo_loc = token().loc;
 				next();
-				// end with an expression
-				if (stmts.length > 0 && stmts[$-1].kind == STMT.expr)
-					return new BlockExpr(stmts, loc);
-				// otherwise
-				else return new BlockExpr(stmts, loc);
+				break;
 			}
 			else {
-				message.error(token().loc, "} of ; expected in { ... }, not " ~ token().str);
+				message.error(token().loc, "A statement or an expression expected in { ... }, not " ~ token().str);
 				return null;
 			}
 		}
 		
+		return new BlockExpr(stmts, has_value, loc);
 	}
 	/*
 	********* Type *********
@@ -185,26 +232,13 @@ class Parser {
 	/*
 	FuncType:
 		Type -> Type
-		(Type, Type, Type, ...) -> Type
-		((Type, Type, Type, ...)) -> Type
 	*/
 	Type parseFuncType() {
 		auto t = parsePtrType();
 		if (token().kind == TOK.arrow) {
 			auto op = token();
 			next();
-			if (t is null) {
-				t = new FuncType([], parseFuncType(), op.loc);
-			}
-			else if (typeid(t) == typeid(TupleType)) {
-				if (t.paren) t = new FuncType([t], parseFuncType(), op.loc);
-				else t = new FuncType((cast(TupleType) t).mems, parseFuncType(), op.loc);
-			}
-			else if (typeid(t) == typeid(UnitType)) {
-				t = new FuncType([], parseFuncType(), op.loc);
-			}
-			else
-				t = new FuncType([t], parseFuncType(), op.loc);
+			t = new FuncType(t, parseFuncType(), op.loc);
 		}
 		return t;
 	}
@@ -278,33 +312,17 @@ class Parser {
 	/*
 	********* Statement *********
 	Stmt:
-		Expr
-		LetDecl
-		FuncDecl
 		ReturnStmt
+		Decl
 	*/
 	
 	static bool isFirstofStmt(TOK kind) {
 		with (TOK)
-		return isFirstofExpr(kind) ||
-			kind.among!(let, func, return_, ) != 0;
+		return kind.among!(let, func, return_, ) != 0;
 	}
 	
 	Stmt[] parseStmt() {
 		auto loc = token().loc;
-		
-		if (isFirstofExpr(token().kind)) {
-			auto exp = parseExpr();
-			auto result = new ExprStmt(exp, loc);
-			if (token().kind == TOK.semcol) {
-				next();
-				return [new ExprStmt(exp, loc)];
-			}
-			else {
-				return [new ReturnStmt(exp, loc)];
-			}
-		}
-		
 		with (TOK)
 		switch (token().kind) {
 		case let:
@@ -321,6 +339,51 @@ class Parser {
 			next();
 			return [];
 		}
+	}
+	
+	ReturnStmt parseReturnStmt() {
+		auto loc = token().loc;
+		check(TOK.return_);
+		next();
+		
+		Expr expr;
+		if (isFirstofExpr(token().kind)) {
+			expr = parseExpr();
+		}
+		
+		check(TOK.semcol);
+		return new ReturnStmt(expr, loc);
+	}
+	/*
+	********* Declaration *********
+	Decl:
+		LetDecl
+		FuncDecl
+	*/
+	
+	static bool isFirstofDecl(TOK kind) {
+		with (TOK)
+		return kind.among!(let, func) != 0;
+	}
+	
+	Decl[] parseDecls() {
+		Decl[] decls;
+		with (TOK)
+		loop:
+		while (1)
+		switch (token().kind) {
+		case let:
+			decls ~= parseLetDecl();
+			break;
+		
+		case func:
+			decls ~= parseFuncDecl();
+			break;
+		
+		default:
+			break loop;
+		}
+		return decls;
 	}
 	
 	LetDecl[] parseLetDecl() {
@@ -373,20 +436,11 @@ class Parser {
 		
 		auto body = parseBlockExpr();
 		body.is_func_body = true;
-		
-		return new FuncDecl(id, args, body);
-	}
-	
-	ReturnStmt parseReturnStmt() {
-		auto loc = token().loc;
-		check(TOK.return_);
-		next();
-		
-		Expr expr;
-		if (isFirstofExpr(token().kind)) {
-			expr = parseExpr();
+		// if the function body ends with an expression value, then rewrite it to the return statement
+		if (body.has_value) {
+			body.stmts[$-1] = new ReturnStmt(body.last_expr, body.stmts[$-1].loc);
 		}
 		
-		return new ReturnStmt(expr, loc);
+		return new FuncDecl(id, args, body);
 	}
 }

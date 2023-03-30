@@ -26,6 +26,9 @@ class PermissiveVisitor : Visitor {
 	override void visit(ArgDecl x) {}
 	override void visit(FuncDecl x) {}
 	
+	// mod.d
+	override void visit(Mod x) {}
+	
 	// stmt.d
 	override void visit(Stmt x) {}
 	override void visit(ExprStmt x) {}

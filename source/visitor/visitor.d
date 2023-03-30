@@ -26,6 +26,9 @@ abstract class Visitor {
 	void visit(ArgDecl);
 	void visit(FuncDecl);
 	
+	// mod.d
+	void visit(Mod);
+	
 	// stmt.d
 	void visit(Stmt);
 	void visit(ExprStmt);

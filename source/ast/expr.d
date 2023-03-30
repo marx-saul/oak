@@ -70,18 +70,24 @@ final class FuncExpr : Expr {
 // block expression
 final class BlockExpr : Expr {
 	Stmt[] stmts;
+	bool has_value;		// ends with expression without semicolon 
+	
+	this (Stmt[] stmts, bool has_value, LOC loc = LOC.init) {
+		this.stmts = stmts;
+		this.has_value = has_value;
+		super(loc);
+	}
+	
 	bool is_func_body;
 	
 	import sem.scope_;
 	Scope scp;		// the scope this block
 	
-	this (Stmt[] stmts, LOC loc = LOC.init) {
-		this.stmts = stmts;
-		super(loc);
-	}
-	
 	Expr last_expr() @property {
-		return (cast(ExprStmt) stmts[$-1]).expr;
+		if (has_value)
+			return (cast(ExprStmt) stmts[$-1]).expr;
+		else
+			return null;
 	}
 	
 	override void accept(Visitor v) { v.visit(this); }

@@ -12,7 +12,8 @@ import visitor.general;
 
 unittest {
 	import parser;
-	
+	import std.stdio;
+	writeln("########### gen/stmt.d");
 }
 
 Operation[] stmt_code_gen(Stmt stmt, Scope scp, uint* tmp_num) {

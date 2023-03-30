@@ -37,6 +37,7 @@ void calc_stack_address(FuncDecl fd) {
 	}
 }
 
+// recursively set the stack address of variables
 private class FuncStackCalculator : GeneralVisitor {
 	this () {}
 	

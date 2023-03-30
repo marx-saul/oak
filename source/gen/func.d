@@ -28,7 +28,7 @@ unittest {
 			
 			{
 				
-			}
+			};
 			
 			/+func subfunc(c, d, e) {
 				/+ let g = 13; +/ /*
@@ -51,6 +51,7 @@ unittest {
 CodeSection func_code_gen(FuncDecl func) {
 	if (!func) return null;
 	
+	//set_scope(fd, func.scp.parent);
 	uint tmp_num = 0;
 	auto ops = expr_code_gen(func.body, func.scp.parent, &tmp_num);
 	return new CodeSection((cast (Function) func.sym).label, ops);

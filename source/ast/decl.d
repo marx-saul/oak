@@ -6,7 +6,7 @@ import sem.symbol;
 import visitor.visitor;
 import token;
 
-class Decl : Stmt {
+abstract class Decl : Stmt {
 	Token id;
 	
 	this (Token id, STMT type, LOC loc = LOC.init) {
@@ -19,7 +19,7 @@ class Decl : Stmt {
 	override void accept(Visitor v) { v.visit(this); }
 }
 
-class ScopeDecl : Decl {
+abstract class ScopeDecl : Decl {
 	this (Token id, STMT type, LOC loc = LOC.init) {
 		super(id, type, loc);
 	}

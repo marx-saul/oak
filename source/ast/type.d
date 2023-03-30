@@ -74,11 +74,11 @@ final class PtrType : Type {
 }
 
 final class FuncType : Type {
-	Type[] args;	// argument types
+	Type arg;		// argument type
 	Type ret;		// return type
 	
-	this (Type[] args, Type ret, LOC loc = LOC.init) {
-		this.args = args;
+	this (Type arg, Type ret, LOC loc = LOC.init) {
+		this.arg = arg;
 		this.ret = ret;
 		super(loc);
 	}

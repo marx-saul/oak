@@ -29,6 +29,12 @@ Token[] getTokens(string source, string path = "") {
 Token getToken(ref string source, ref size_t index, ref size_t line) {
 	size_t ptr = 0;
 	
+	void nextChar() {
+		if (source.length == 0) return;
+		if (source[0] == '\n') index = 0, ++line;
+		else ++index;
+		source = source[1 .. $];
+	}
 	bool lookahead(char c) {
 		if (source.length >= 2) return source[1] == c;
 		else return false;
@@ -37,40 +43,45 @@ Token getToken(ref string source, ref size_t index, ref size_t line) {
 	while (1) {
 		// spaces
 		while (source.length > 0 && isWhite(source[0]))
-			source = source[1 .. $];
+			nextChar();
+			
 		// not a comment
 		if (source.length == 0 || source[0] != '/') break;
+		
 		// one line comment
 		else if (lookahead('/')) {
-			source = source[2 .. $];	 // get rid of //
+			nextChar(); nextChar();	 // get rid of //
 			while (source.length > 0 && source[0] != '\n')
-				source = source[1 .. $];
+				nextChar();
 		}
+		
 		// multiple line comment
 		else if (lookahead('*')) {
-			source = source[2 .. $];	 // get rid of /*
+			nextChar(); nextChar();	 // get rid of /*
 			while (source.length >= 2 && !(source[0] == '*' && source[1] == '/'))
-				source = source[1 .. $];
+				nextChar();
 			// (TODO) not closed by */ error
 			//if (source.length <= 1) {  }
-			if (source.length >= 2) source = source[2 .. $];	 // get rid of */
+			if (source.length >= 2) { nextChar(); nextChar(); }	 // get rid of */
 		}
+		
 		// nested comment
 		else if (lookahead('+')) {
-			source = source[2 .. $]; // get rid of /
+			nextChar(); nextChar(); // get rid of /
 			uint comment_depth = 1;
 			while (comment_depth > 0 && source.length > 0) {
 				if	  (source[0] == '+' && lookahead('/')) {
 					--comment_depth;
-					source = source[2 .. $];	 // get rid of +
+					nextChar(); nextChar();	 // get rid of +/
 				}
 				else if (source[0] == '/' && lookahead('+')) {
 					++comment_depth;
-					source = source[2 .. $];	 // get rid of /
+					nextChar(); nextChar();	 // get rid of /+
 				}
-				else source = source[1 .. $];
+				else nextChar();
 			}
 		}
+		
 		else break;
 	}
 	

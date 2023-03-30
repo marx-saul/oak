@@ -24,7 +24,10 @@ class GeneralVisitor : Visitor {
 	
 	// func.d
 	override void visit(ArgDecl x) { visit(cast(Decl) x); }
-	override void visit(FuncDecl x) { visit(cast(Decl) x); }
+	override void visit(FuncDecl x) { visit(cast(ScopeDecl) x); }
+	
+	// mod.d
+	override void visit(Mod x) { visit(cast(ScopeDecl) x); }
 	
 	// stmt.d
 	override void visit(Stmt x) { visit(cast(Node) x); }

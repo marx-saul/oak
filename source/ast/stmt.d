@@ -13,6 +13,7 @@ enum STMT {
 	let,
 	arg,
 	func,
+	mod,
 }
 
 class Stmt : Node {

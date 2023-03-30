@@ -5,6 +5,7 @@ import ast;
 import sem.scope_;
 
 enum SYM {
+	mod,		// module defined by module
 	var,		// variable defined by let
 	arg,		// argument of a function
 	func,		// function name defined by func
@@ -38,6 +39,21 @@ class Symbol {
 	}
 }
 
+class ScopeSymbol : Symbol {
+	Scope scp;	// the scope this symbol defines
+	
+	this (SYM type, Decl decl, Scope parent, Scope scp) {
+		this.scp = scp;
+		super(type, decl, parent);
+	}
+}
+
+class Module : ScopeSymbol {
+	this (Mod decl, Scope parent, Scope scp) {
+		super(SYM.mod, decl, parent, scp);
+	}
+}
+
 class Variable : Symbol {
 	this (LetDecl decl, Scope parent) {
 	 	super(SYM.var, decl, parent);
@@ -52,15 +68,6 @@ class Argument : Symbol {
 	}
 	
 	override uint size() @property { return VALUE_SIZE; }
-}
-
-class ScopeSymbol : Symbol {
-	Scope scp;	// the scope this symbol defines
-	
-	this (SYM type, Decl decl, Scope parent, Scope scp) {
-		this.scp = scp;
-		super(type, decl, parent);
-	}
 }
 
 class Function : ScopeSymbol {

@@ -5,9 +5,9 @@ import ast;
 import visitor.general;
 
 enum SCP {
-	root,	// module
-	expr,	// block expression
-	func,	// function body
+	mod,		// module
+	expr,		// block expression
+	func,		// function body
 }
 
 class Scope {
@@ -71,17 +71,28 @@ class Scope {
 	
 	// set the stack address of each symbols
 	void calculate_stack() {
-		auto current = this;
-		if (!_is_stack_calculated) {
-			while (current) {
-				if (current.kind == SCP.func) {
-					import sem.func;
-					calc_stack_address(cast (FuncDecl) node);
-					return;
-				}
-				else current = current.parent;
-			}
+		if (_is_stack_calculated) return;
+		
+		if (this.kind == SCP.mod) {
+			import sem.mod;
+			calculate_module_static_data(cast (Mod) node);
 		}
+		
+		auto current = this;
+		while (current)
+			final switch (current.kind) {
+			case SCP.mod:
+				assert(0);
+			
+			case SCP.func:
+				import sem.func;
+				calc_stack_address(cast (FuncDecl) node);
+				return;
+		
+			case SCP.expr:
+				current = current.parent;
+				break;
+			}
 	}
 	bool _is_stack_calculated;
 	
