@@ -12,6 +12,8 @@ import gen.func;
 unittest {
 	import parser;
 	import std.stdio;
+	import gen.exec;
+	
 	writeln("########### gen/mod.d");
 	
 	Mod mod;
@@ -23,8 +25,9 @@ unittest {
 			func main() {
 				let a = 23;
 				let b = 47;
-				let c = multiply(a, b);
-				return c;
+				let c = 0;
+				c = multiply(a, b);
+				return c+334;
 			}
 			
 			func multiply(n, m) {
@@ -37,7 +40,15 @@ unittest {
 	}
 	
 	auto program = mod_program_gen(mod);
+	program.code_secs = [new CodeSection("entry_point", [
+		Operation.start_call(),
+		Operation.push(new Int(global.VALUE_SIZE, global.PTR_SIZE)),
+		Operation.goto_(new Label(program.code_secs[0].name, true)),
+		Operation.halt()])]
+	~ program.code_secs;
 	writeln(program);
+	program.execute();
+	
 }
 
 Program mod_program_gen(Mod mod) {
@@ -51,6 +62,10 @@ Program mod_program_gen(Mod mod) {
 		if (sym.kind == SYM.func) {
 			set_scope(cast(FuncDecl) sym.decl, mod.scp);
 			code_secs ~= func_code_gen(cast(FuncDecl) sym.decl);
+			
+			import std.stdio;
+			writeln(__LINE__, sym.name, (cast(Function) sym).label);
+			writeln(code_secs[$-1].name);
 		}
 	}
 	

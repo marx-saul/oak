@@ -127,6 +127,7 @@ private class ExprGen : GeneralVisitor {
 	
 	/*
 	function call :
+	{calculate arguments}
 	start_call
 	{push the environment pointer}
 	{push this}
@@ -156,25 +157,31 @@ private class ExprGen : GeneralVisitor {
 		
 		auto sym = cast(Function) fn_sym;	// function symbol
 		
-		
-		// (TODO need to fix, for example recursive calls)
 		// store the s0 in order to push environment pointer
 		result ~= Operation.move(new Stack(0, 0), new Temp(PTR_SIZE, *tmp_num), false);
+		auto env_ptr_tmp_num = *tmp_num;
+		++*tmp_num;
 		
-		// start_call
+		uint[] arg_tmp_nums; 
+		// calculate arguments
+		foreach (arg; e.args) {
+			if (arg) arg.accept(this);
+			arg_tmp_nums ~= *tmp_num-1;
+			// TODO replace by general pushes
+			//result ~= Operation.push32(new Temp(global.VALUE_SIZE, *tmp_num-1));
+		}
+		
 		result ~= Operation.start_call();
 		
-		// push the environment pointer
-		result ~= Operation.push64(new Temp(PTR_SIZE, *tmp_num));
-		++*tmp_num;
+		// push environment pointer
+		// (TODO need to fix, for example recursive calls)
+		result ~= Operation.push64(new Temp(PTR_SIZE, env_ptr_tmp_num));
 		
 		// TODO push this
 		
 		// push arguments
-		foreach (arg; e.args) {
-			if (arg) arg.accept(this);
-			// TODO replace by general pushes
-			result ~= Operation.push32(new Temp(global.VALUE_SIZE, *tmp_num-1));
+		foreach (arg_tmp_num; arg_tmp_nums) {
+			result ~= Operation.push32(new Temp(VALUE_SIZE, arg_tmp_num));
 		}
 		
 		// goto
@@ -215,10 +222,16 @@ private class ExprGen : GeneralVisitor {
 			// how far from the current scope
 			auto depth = scp.stack_depth(sym.parent);
 			// TODO
-			if (depth > 0) assert(0, "reading parent scope variables has not been implemented");
+			//if (depth > 0) assert(0, "reading parent scope variables has not been implemented");
 			
+			// left value
 			if (is_lval) {
-				result ~= Operation.move(new Stack(global.VALUE_SIZE, sym.address), new Temp(global.VALUE_SIZE, *tmp_num), false);
+				// same scope variable
+				if (sym.parent is scp)
+					result ~= Operation.move(new Stack(global.VALUE_SIZE, sym.address), new Temp(global.PTR_SIZE, *tmp_num), false);
+				// module variable 
+				else if (sym.parent.kind == SCP.mod)
+					result ~= Operation.move(new Int(global.PTR_SIZE, sym.address), new Temp(global.PTR_SIZE, *tmp_num), false);
 				++*tmp_num;
 			}
 			else {

@@ -73,15 +73,13 @@ class Argument : Symbol {
 class Function : ScopeSymbol {
 	this (FuncDecl decl, Scope parent, Scope scp) {
 		super(SYM.func, decl, parent, scp);
+		
+		_label = unique_label();
 	}
 	
-	string _label;	// the label of this function
+	private string _label;
 	string label() @property {
-		import global;
-		if (_label.length == 0)
-			return _label = unique_label();
-		else
-			return _label;
+		return _label;
 	}
 	
 	// for class method

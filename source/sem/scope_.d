@@ -128,7 +128,7 @@ class ScopeGenerator : GeneralVisitor {
 	
 	// decl.d
 	override void visit(LetDecl x) {
-		root.add_symbol(new Variable(x, root));
+		if (x.id.str !in root.table) root.add_symbol(new Variable(x, root));
 	}
 	
 	// expr.d
@@ -163,13 +163,23 @@ class ScopeGenerator : GeneralVisitor {
 		root = new Scope(SCP.func, x, root);
 		scope(exit) root = root.parent;
 		
-		root.parent.add_symbol(new Function(x, root.parent, root));
+		if (x.id.str !in root.parent.table) root.parent.add_symbol(new Function(x, root.parent, root));
 		x.scp = root;
 		foreach (arg; x.args) {
-			root.add_symbol(new Argument(arg, root));
+			if (arg.id.str !in root.table) root.add_symbol(new Argument(arg, root));
 		}
 		if (x.body) x.body.accept(this);
 	}
+	
+	// mod.d
+	/+override void visit(Mod x) {
+		root = new Scope(SCP.mod, x, root);
+		scope(exit) root = root.parent;
+		
+		foreach (decl; x.decls) {
+			if (decl) decl.accept(this);
+		}
+	}+/
 	
 	// stmt.d
 	override void visit(ExprStmt x) {

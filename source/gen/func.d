@@ -15,28 +15,14 @@ unittest {
 	
 	writeln("########### gen/func.d");
 	
-	{
+	/+{
 		auto p = new Parser(`
-		func pow(n, m) {
-			let c = 100;
-			
-			{
-				let d = 10;
-				{ let e = 11; };
-				let f = 12;
-			};
-			
-			{
-				
-			};
-			
-			/+func subfunc(c, d, e) {
-				/+ let g = 13; +/ /*
-			}+/
-			
-			let g = 200;
-			n*m
-		}
+			func main() {
+				let a = 23;
+				let b = 47;
+				let c = a*b;
+				return c;
+			}
 		`, "scope_.d");
 		auto fd = p.parseFuncDecl();
 		auto root_scp = new Scope;
@@ -44,7 +30,7 @@ unittest {
 		
 		auto cs = func_code_gen(fd);
 		writeln(cs);
-	}
+	}+/
 }
 
 // scp : the scope that func belongs to

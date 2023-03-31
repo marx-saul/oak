@@ -52,15 +52,15 @@ private class StmtGen : GeneralVisitor {
 			result ~= expr_code_gen(node.expr, scp, tmp_num);
 			result ~= Operation.move(new Temp(global.VALUE_SIZE, *tmp_num-1), new Result(global.VALUE_SIZE, 0), false);	
 			//result ~= Operation.pop(nwe Int());
-			result ~= Operation.ret();
 		}
+		result ~= Operation.ret();
 	}
 	
 	// assign an expression to the stack
 	override void visit(LetDecl node) {
-		result ~=
-			expr_code_gen(node.expr, scp, tmp_num)
-		 ~ [Operation.move(new Temp(global.VALUE_SIZE, *tmp_num), new Stack(global.VALUE_SIZE, node.sym.address), true)];
+		// need to separate for *tmp_num to change
+		result ~= expr_code_gen(node.expr, scp, tmp_num);
+		result ~= Operation.move(new Temp(global.VALUE_SIZE, *tmp_num), new Stack(global.VALUE_SIZE, node.sym.address), true);
 	}
 	
 	override void visit(FuncDecl node) {

@@ -4,8 +4,8 @@ import global;
 import gen.code;
 
 import std.conv, std.algorithm;
-
 import std.stdio : writeln;
+
 unittest {
 	writeln("########### gen/exec.d");
 	auto cs_main = to_code_sec(
@@ -61,30 +61,49 @@ struct SourceVal {
 }
 
 auto executer(Program program, const size_t stack_size = 2 ^^ 20) {
+	// stack
 	auto stack = program.data.dup;
 	auto stack_top = stack.length;
 	stack.length = stack_size;
+	
+	// stacks for program control
+	size_t[] sec_stacks = [0];				// the sections that are called
+	size_t[] code_ptrs = [0];				// code pointers
+	// stack pointers
+	size_t[] stack_ptrs = [stack_top];
+	// variables
+	SourceVal[][] tmps = [new SourceVal[program.code_secs[0].tmp_num]];							// tmp variables
+	SourceVal[][] results = [new SourceVal[program.code_secs[0].result_num]];					// result variables
+	
+	
+	// current code section
+	CodeSection code_sec() @property {
+		return program.code_secs[sec_stacks[$-1]];
+	}
+	// current operation
+	Operation operation() @property {
+		return code_sec.code[code_ptrs[$-1]];
+	}
+	// to the next code
+	void next() {
+		++code_ptrs[$-1];
+	}
+	
 	int* to_int32_ptr(long index) {
-		assert (index+4 <= min(stack_top, stack_size+1));
+		assert(index+4 <= stack_size+1, "stack over flow");
+		assert (index+4 <= stack_top, operation.toString() ~ " stack_top: " ~ stack_top.to!string ~ " index: " ~ index.to!string);
 		return cast(int*) stack + index;
 	}
 	long* to_int64_ptr(long index) {
-		assert (index+8 <= min(stack_top, stack_size+1));
+		assert(index+8 <= stack_size+1, "stack over flow");
+		assert (index+8 <= stack_top, operation.toString() ~ " stack_top: " ~ stack_top.to!string ~ " index: " ~ index.to!string);
 		return cast(long*) stack + index;
 	}
 	
-	void change_stack_ptr(int diff) {
+	void change_stack_ptr(long diff) {
 		if (stack_top + diff >= stack_size) assert(0, "stack overflow");
 		stack_top += diff;
 	} 
-	
-	// stacks for program section gotos
-	size_t[] sec_stacks = [0];				// the sections that are called
-	size_t[] code_ptrs = [0];				// code pointers
-	size_t[] stack_ptrs = [stack_top];	// stack pointers
-	
-	SourceVal[][] tmps = [new SourceVal[program.code_secs[0].tmp_num]];							// tmp variables
-	SourceVal[][] results = [new SourceVal[program.code_secs[0].result_num]];					// result variables
 	
 	// get the source value from the source
 	SourceVal get_val(Source s) {
@@ -141,7 +160,6 @@ auto executer(Program program, const size_t stack_size = 2 ^^ 20) {
 				tmps[$-1][t.num] = val;
 			}
 			else {
-				assert (t.size == PTR_SIZE);
 				if (val.size == 4) 
 					*to_int32_ptr(tmps[$-1][t.num].int64) = val.int32;
 				else if (val.size == 8)
@@ -157,7 +175,7 @@ auto executer(Program program, const size_t stack_size = 2 ^^ 20) {
 		
 		case stack:
 			auto t = cast(Stack) dest;
-			assert(is_deref && t.size == val.size);
+			assert(is_deref, operation.toString());
 			
 			switch (t.size) {
 			case 4:
@@ -176,19 +194,6 @@ auto executer(Program program, const size_t stack_size = 2 ^^ 20) {
 		default:
 			assert(0);
 		}
-	}
-	
-	// current code section
-	CodeSection code_sec() @property {
-		return program.code_secs[sec_stacks[$-1]];
-	}
-	// current operation
-	Operation operation() @property {
-		return code_sec.code[code_ptrs[$-1]];
-	}
-	// to the next code
-	void next() {
-		++code_ptrs[$-1];
 	}
 	
 	// 0 : continue, 1 : halt
@@ -250,7 +255,6 @@ auto executer(Program program, const size_t stack_size = 2 ^^ 20) {
 				if (ls.is_sec) {
 					sec_stacks ~= program.sec_address(ls.name);
 					code_ptrs ~= 0;
-					//stack_ptrs ~= stack_top;
 					tmps ~= [ new SourceVal[code_sec.tmp_num] ];
 					results ~= [ new SourceVal[code_sec.result_num] ];
 					// stack pointer is stocked by user using "start_call"
@@ -268,7 +272,7 @@ auto executer(Program program, const size_t stack_size = 2 ^^ 20) {
 			break;
 	
 		case push:
-			stack_top += get_val(operation.s1).int64;
+			change_stack_ptr(get_val(operation.s1).int64);
 			break;
 			
 		case push32:
@@ -282,7 +286,7 @@ auto executer(Program program, const size_t stack_size = 2 ^^ 20) {
 			break;
 		
 		case pop:
-			stack_top -= get_val(operation.s1).int64;
+			change_stack_ptr(-get_val(operation.s1).int64);
 			break;
 		
 		case pop32:
@@ -304,11 +308,12 @@ auto executer(Program program, const size_t stack_size = 2 ^^ 20) {
 		case ret:
 			sec_stacks.length -= 1;
 			code_ptrs.length -= 1;
-			stack_ptrs.length -= 1;
 			tmps.length -= 1;
 			
 			// rollback the stack pointer
 			stack_top = stack_ptrs[$-1];
+			stack_ptrs.length -= 1;
+			
 			// push results
 			foreach (sv; results[$-1]) {
 				switch (sv.size) {
@@ -325,7 +330,6 @@ auto executer(Program program, const size_t stack_size = 2 ^^ 20) {
 			}
 			
 			results.length -= 1;
-			
 			break;
 	
 		case halt:
@@ -336,7 +340,6 @@ auto executer(Program program, const size_t stack_size = 2 ^^ 20) {
 			auto code_name = (cast(Label) operation.s1).name;
 			switch (code_name) {
 			case "log32":
-				import std.stdio : writeln;
 				writeln("ACCESS LOG (32) : ", get_val(operation.s2).int32);
 				break;
 			default:

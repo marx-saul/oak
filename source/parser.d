@@ -344,7 +344,6 @@ class Parser {
 	ReturnStmt parseReturnStmt() {
 		auto loc = token().loc;
 		check(TOK.return_);
-		next();
 		
 		Expr expr;
 		if (isFirstofExpr(token().kind)) {
