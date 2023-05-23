@@ -87,9 +87,6 @@ void set_struct_size(Struct s, ref bool flag) {
 	// already known
 	if (s.size_ok) return;
 	
-	import std.stdio;
-	writeln(s.name, " set_struct_size");
-	
 	// avoid circular calculation
 	if (s.size_in_use) {
 		error(s.decl.loc, "Circular calculation of the size of struct '" ~ s.name ~ "'.");
@@ -115,14 +112,11 @@ void set_struct_size(Struct s, ref bool flag) {
 			// set the size of this variable
 			set_type_size(&var_decl.type, s.scp, flag);
 			s_size_ok = s_size_ok && var_decl.type.size_ok;
-			
-			writeln("\t", var.name, var_decl.type.size_ok, var_decl.type.kind);
 		}
 	}
 	
 	// if all variables are size_ok, then calculate alignments and the size of the struct
 	if (s_size_ok) {
-		writeln(s.name, " size_ok");
 		s.size_ok = true;
 		flag = true;
 		s.size_in_use = false;
