@@ -13,13 +13,20 @@ class Expr : Node {
 		super(loc);
 	}
 	
-	Type _type;
-	Type type() @property {
-		if (!_type) _type = new Int32Type();
-		return _type;
+	Type type;
+	bool type_ok() @property {
+		return !type && type.sem_ok;
 	}
 	
 	override void accept(Visitor v) { v.visit(this); }
+	
+	BinExpr   isBinExpr()   @property { return null; }
+	UnExpr    isUnExpr()    @property { return null; }
+	FuncExpr  isFuncExpr()  @property { return null; }
+	TupleExpr isTupleExpr() @property { return null; }
+	IdExpr    isIdExpr()    @property { return null; }
+	IntExpr   isIntExpr()   @property { return null; }
+	UnitExpr  isUnitExpr()  @property { return null; }
 }
 
 // e0 op e1
@@ -66,7 +73,7 @@ final class FuncExpr : Expr {
 	override void accept(Visitor v) { v.visit(this); }
 }
 
-
+/+
 // block expression
 final class BlockExpr : Expr {
 	Stmt[] stmts;
@@ -92,14 +99,13 @@ final class BlockExpr : Expr {
 	
 	override void accept(Visitor v) { v.visit(this); }
 }
++/
 
-
-// integer literal
-final class IntExpr : Expr {
-	string str;
+final class TupleExpr : Expr {
+	Expr[] mems;
 	
-	this (string str, LOC loc = LOC.init) {
-		this.str = str;
+	this (Expr[] mems, LOC loc = LOC.init) {
+		this.mems = mems;
 		super(loc);
 	}
 	
@@ -108,6 +114,21 @@ final class IntExpr : Expr {
 
 // identifier literal
 final class IdExpr : Expr {
+	string str;
+	
+	this (string str, LOC loc = LOC.init) {
+		this.str = str;
+		super(loc);
+	}
+	
+	import sem.symbol;
+	Symbol sym;
+	
+	override void accept(Visitor v) { v.visit(this); }
+}
+
+// integer literal
+final class IntExpr : Expr {
 	string str;
 	
 	this (string str, LOC loc = LOC.init) {

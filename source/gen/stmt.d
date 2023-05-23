@@ -9,7 +9,7 @@ import gen.code;
 import gen.expr;
 import visitor.general;
 
-
+/+
 unittest {
 	import parser;
 	import std.stdio;
@@ -67,4 +67,4 @@ private class StmtGen : GeneralVisitor {
 		assert(0, "inner function has not been implemented");
 	}
 }
-
++/

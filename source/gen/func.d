@@ -8,7 +8,7 @@ import sem.symbol;
 import sem.func;
 import gen.code;
 import gen.expr;
-
+/+
 unittest {
 	import parser;
 	import std.stdio;
@@ -42,4 +42,4 @@ CodeSection func_code_gen(FuncDecl func) {
 	auto ops = expr_code_gen(func.body, func.scp.parent, &tmp_num);
 	return new CodeSection((cast (Function) func.sym).label, ops);
 }
-
++/

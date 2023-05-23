@@ -101,14 +101,15 @@ Token getToken(ref string source, ref size_t index, ref size_t line) {
 		
 		with (TOK)
 		result.kind =
+			result.str == "__access" ?		access :
 			result.str == "else" ?			else_ :
 			result.str == "func" ?			func :
 			result.str == "if" ?			if_ :
 			result.str == "int32" ?			int32 :
 			result.str == "int64" ?			int64 :
 			result.str == "let" ?			let :
+			result.str == "struct" ?		struct_:
 			result.str == "return" ?		return_:
-			result.str == "__access" ?		access :
 			id;
 	}
 	

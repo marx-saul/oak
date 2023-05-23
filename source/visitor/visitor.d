@@ -17,7 +17,7 @@ abstract class Visitor {
 	void visit(BinExpr);
 	void visit(UnExpr);
 	void visit(FuncExpr);
-	void visit(BlockExpr);
+	void visit(TupleExpr);
 	void visit(IntExpr);
 	void visit(IdExpr);
 	void visit(UnitExpr);
@@ -27,12 +27,16 @@ abstract class Visitor {
 	void visit(FuncDecl);
 	
 	// mod.d
-	void visit(Mod);
+	void visit(ModuleDecl);
 	
 	// stmt.d
 	void visit(Stmt);
 	void visit(ExprStmt);
+	void visit(BlockStmt);
 	void visit(ReturnStmt);
+	
+	// struct_.d
+	void visit(StructDecl);
 	
 	// type.d
 	void visit(Type);
@@ -41,6 +45,7 @@ abstract class Visitor {
 	void visit(PtrType);
 	void visit(FuncType);
 	void visit(IdType);
+	void visit(StructType);
 	void visit(UnitType);
 	void visit(Int32Type);
 	void visit(Int64Type);

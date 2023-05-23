@@ -8,12 +8,14 @@ import token;
 
 enum STMT {
 	expr,
+	block,
 	return_,
 	// declaration
 	let,
 	arg,
 	func,
-	mod,
+	module_,
+	struct_,
 }
 
 class Stmt : Node {
@@ -25,6 +27,16 @@ class Stmt : Node {
 	}
 	
 	override void accept(Visitor v) { v.visit(this); }
+	
+	import ast;
+	ExprStmt   isExprStmt()   @property { return null; }
+	BlockStmt  isBlockStmt()  @property { return null; }
+	ReturnStmt isReturnStmt() @property { return null; }
+	LetDecl    isLetDecl()    @property { return null; }
+	ArgDecl    isArgDecl()    @property { return null; }
+	FuncDecl   isFuncDecl()   @property { return null; }
+	StructDecl isStructDecl() @property { return null; }
+	ModuleDecl isModuleDecl() @property { return null; }
 }
 
 final class ExprStmt : Stmt {
@@ -36,6 +48,21 @@ final class ExprStmt : Stmt {
 	}
 	
 	override void accept(Visitor v) { v.visit(this); }
+	
+	override ExprStmt isExprStmt() @property { return this; }
+}
+
+final class BlockStmt : Stmt {
+	Stmt[] stmts;
+	
+	this (Stmt[] stmts, LOC loc) {	
+		this.stmts = stmts;
+		super(STMT.block, loc);
+	}
+	
+	override void accept(Visitor v) { v.visit(this); }
+	
+	override BlockStmt isBlockStmt() @property { return this; }
 }
 
 final class ReturnStmt : Stmt {
@@ -47,5 +74,7 @@ final class ReturnStmt : Stmt {
 	}
 	
 	override void accept(Visitor v) { v.visit(this); }
+	
+	override ReturnStmt isReturnStmt() @property { return this; }
 }
 

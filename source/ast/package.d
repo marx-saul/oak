@@ -4,7 +4,8 @@ public import
 	ast.decl,
 	ast.expr,
 	ast.func,
-	ast.mod,
+	ast.module_,
 	ast.node,
 	ast.stmt,
+	ast.struct_,
 	ast.type;

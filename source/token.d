@@ -11,6 +11,7 @@ enum TOK : ubyte {
 	string_lit,
 	
 	// reserved keywords
+	access,
 	else_,
 	func,
 	if_,
@@ -18,8 +19,7 @@ enum TOK : ubyte {
 	int64,
 	let,
 	return_,
-	
-	access,
+	struct_,
 	
 	// symbols
 	ass,		// =
@@ -80,4 +80,63 @@ struct Token {
 	TOK kind;		/// the kind of the token
 	string str;		/// the string of the token
 	LOC loc;		/// the location of the token in the file
+}
+
+string toString(TOK k) {
+	with (TOK)
+	final switch (k) {
+	case error: return "ERROR";
+	case eof: return "EOF";
+	
+	// literals
+	case id: return "ID";
+	case int_: return "INTEGER";
+	case real_: return "REAL NUMBER";
+	case string_lit: return "\"SOME STRING\"";
+	
+	// reserved keywords
+	case access: return "access";
+	case else_: return "else";
+	case func: return "func";
+	case if_: return "if";
+	case int32: return "int32";
+	case int64: return "int64";
+	case let: return "let";
+	case return_: return "return";
+	case struct_: return "struct";
+	
+	// symbols
+	case ass: return "=";		// =
+	case eq: return "==";			// ==
+	case ls: return "<";			// <
+	case leq: return "<=";		// <=
+	case gt: return ">";			// >
+	case geq: return ">=";		// >=
+	
+	case add: return "+";		// +
+	case sub: return "=";		// -
+	case mul: return "*";		// *
+	case div: return "/";		// /
+	case mod: return "%";		// %
+	
+	case amp: return "&";		// &
+	
+	case bs: return "\\";			// \
+	
+	case arrow: return "->";		// ->
+	case mapsto: return "=>";		// =>
+	
+	case dot: return ".";		// .
+	
+	case col: return ":";		// :
+	case semcol: return ";";		// ;
+	case com: return ",";		// ,
+	
+	case lpar: return "(";		// (
+	case rpar: return ")";		// )
+	case lbra: return "[";		// [
+	case rbra: return "]";		// ]
+	case lblo: return "{";		// {
+	case rblo: return "}";		// }
+	}
 }

@@ -6,7 +6,7 @@ import sem.scope_;
 import sem.symbol;
 import visitor.general;
 
-unittest {
+/+unittest {
 	import parser, std.stdio;
 	writeln("########### sem/func.d");
 	
@@ -27,8 +27,8 @@ unittest {
 		writeln(sym.name, ": ", sym.address);
 	}
 	writeln(fd.scp.stack_size);
-}
-
+}+/
+/*
 // calculate the address (of symbols) from the STACK_BOTTOM of each variable defined inside the function
 void calc_stack_address(FuncDecl fd) {
 	if (fd) {
@@ -119,3 +119,4 @@ private class FuncStackCalculator : GeneralVisitor {
 	// ignore other expressions
 	override void visit(Expr e) {}
 }
+*/

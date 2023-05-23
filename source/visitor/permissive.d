@@ -17,7 +17,7 @@ class PermissiveVisitor : Visitor {
 	override void visit(BinExpr x) {}
 	override void visit(UnExpr x) {}
 	override void visit(FuncExpr x) {}
-	override void visit(BlockExpr x) {}
+	override void visit(TupleExpr x) {}
 	override void visit(IntExpr x) {}
 	override void visit(IdExpr x) {}
 	override void visit(UnitExpr x) {}
@@ -27,12 +27,16 @@ class PermissiveVisitor : Visitor {
 	override void visit(FuncDecl x) {}
 	
 	// mod.d
-	override void visit(Mod x) {}
+	override void visit(ModuleDecl x) {}
 	
 	// stmt.d
 	override void visit(Stmt x) {}
 	override void visit(ExprStmt x) {}
+	override void visit(BlockStmt x) {}
 	override void visit(ReturnStmt x) {}
+	
+	// struct_.d
+	override void visit(StructDecl x) {}
 	
 	// type.d
 	override void visit(Type x) {}
@@ -41,6 +45,7 @@ class PermissiveVisitor : Visitor {
 	override void visit(PtrType x) {}
 	override void visit(FuncType x) {}
 	override void visit(IdType x) {}
+	override void visit(StructType x) {}
 	override void visit(UnitType x) {}
 	override void visit(Int32Type x) {}
 	override void visit(Int64Type x) {}

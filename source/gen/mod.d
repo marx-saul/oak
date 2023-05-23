@@ -2,13 +2,13 @@ module gen.mod;
 
 import global;
 import ast;
-import sem.mod;
+import sem.module_;
 import sem.func;
 import sem.scope_;
 import sem.symbol;
 import gen.code;
 import gen.func;
-
+/+
 unittest {
 	import parser;
 	import std.stdio;
@@ -73,3 +73,4 @@ Program mod_program_gen(Mod mod) {
 	
 	return new Program(code_secs, static_data);
 }
++/

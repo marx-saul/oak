@@ -12,23 +12,38 @@ unittest {
 	writeln("########### parser.d");
 	{
 		scope p = new Parser("
-			let counter = 0;
-			let x = 0;
-			
-			func main() {
-				let a = 23;
-				let b = 47;
-				let c = multiply(a, b);
-				return c;
-			}
-			
-			func multiply(n, m) {
-				counter = counter + 1;
-				let result = n * m;
-				result
-			}
+let counter = 0;
+let x: int64 = 0;
+
+func main() {
+	let a:int32 = 23;
+	let b:int64 = 47;
+	let c:(int32, &int64) = (-a, &b);
+	return c;
+}
+
+func multiply(n: int32, m: int32) {
+	counter = counter + 1;
+	let result = n * m;
+	return result;
+}
+
+struct calc {
+	let member0: int32;
+	let member1: int32;
+	
+	func calc() {
+		let k:int32 = n+1;
+		func inner(m: int32) {
+			return m + k + member0 * member1;
+		}
+		return inner(k) + 1;
+	}
+	
+	let member2 = 0;
+}
 		", "parser-1");
-		auto mod = p.parseMod();
+		auto mod = p.parseModuleDecl();
 	}
 }
 
@@ -44,7 +59,7 @@ class Parser {
 	private void next() { ++ptr; }
 	private void check(TOK kind) {
 		if (token().kind != kind) {
-			message.error(token().loc, kind.to!string ~ " expected, not " ~ token().kind.to!string);
+			message.error(token().loc, kind.to!string ~ " expected, not " ~ token().str);
 		}
 		next();
 	}
@@ -52,11 +67,11 @@ class Parser {
 	/*
 	********* Module **********
 	*/
-	Mod parseMod() {
+	ModuleDecl parseModuleDecl() {
 		auto loc = token().loc;
 		auto decls = parseDecls();
 		check(TOK.eof);
-		return new Mod(Token.init, decls, loc);
+		return new ModuleDecl(Token.init, decls, loc);
 	}
 	
 	/*
@@ -64,7 +79,7 @@ class Parser {
 	*/
 	static bool isFirstofExpr(TOK kind) {
 		with (TOK)
-		return kind.among!(id, int_, real_, string_lit, add, sub, mul, lpar, lbra, lblo, access, if_) != 0;
+		return kind.among!(id, int_, real_, string_lit, add, sub, mul, amp, lpar, lbra, access, if_) != 0;
 	}
 	
 	Expr parseExpr() {
@@ -106,7 +121,7 @@ class Parser {
 	
 	Expr parseUnaryExpr() {
 		with (TOK)
-		if (token().kind.among!(sub)) {
+		if (token().kind.among!(sub, amp, mul)) {
 			auto op = token();
 			next();
 			return new UnExpr(op.kind, parseUnaryExpr(), op.loc);
@@ -150,19 +165,27 @@ class Parser {
 			return new IdExpr(num.str, num.loc);
 			
 		case lpar:
+			auto loc = token().loc;
 			next();
 			if (token().kind == rpar) {
-				auto loc = token().loc;
 				next();
 				return new UnitExpr(loc);
 			}
-			auto e = parseExpr();
+			
+			Expr e;
+			Expr[] members;
+			while (isFirstofExpr(token().kind)) {
+				members ~= parseExpr();
+				if (token.kind == TOK.com) next();
+			}
+			if (members.length == 1) {
+				members[0].paren = true;
+				e = members[0];
+			}
+			else e = new TupleExpr(members, loc);
 			check(rpar);
-			e.paren = true;
+			
 			return e;
-		
-		case lblo:
-			return parseBlockExpr();
 		
 		default:
 			message.error(token().loc, "An Expression expected, not " ~ token().kind.to!string);
@@ -171,53 +194,6 @@ class Parser {
 		}
 	}
 	
-	BlockExpr parseBlockExpr() {
-		auto loc = token().loc;
-		check(TOK.lblo);
-		
-		Stmt[] stmts;
-		bool has_value;
-		with (TOK)
-		while (true) {
-			// Statment
-			if (isFirstofStmt(token().kind)) {
-				stmts ~= parseStmt();
-			}
-			// Expression
-			else if (isFirstofExpr(token().kind)) {
-				auto exprloc = token().loc;
-				auto expr = parseExpr();
-				stmts ~= new ExprStmt(expr, exprloc);
-				
-				// expression followed by }
-				if (token().kind == rblo) {
-					next();
-					has_value = true;
-					break;
-				}
-				// expression followed by ;
-				else if (token().kind == semcol) {
-					next();
-					continue;
-				}
-				// otherwise error
-				else {
-					message.error(token().loc, "} or ; expected after an expression in { ... }, not " ~ token().str);
-					return null;
-				}
-			}
-			else if (token().kind == rblo) {
-				next();
-				break;
-			}
-			else {
-				message.error(token().loc, "A statement or an expression expected in { ... }, not " ~ token().str);
-				return null;
-			}
-		}
-		
-		return new BlockExpr(stmts, has_value, loc);
-	}
 	/*
 	********* Type *********
 	*/
@@ -318,27 +294,56 @@ class Parser {
 	
 	static bool isFirstofStmt(TOK kind) {
 		with (TOK)
-		return kind.among!(let, func, return_, ) != 0;
+		return isFirstofExpr(kind) || isFirstofDecl(kind) || kind.among!(lblo, return_) != 0;
 	}
 	
 	Stmt[] parseStmt() {
 		auto loc = token().loc;
-		with (TOK)
-		switch (token().kind) {
-		case let:
-			return cast(Stmt[]) parseLetDecl();
 		
-		case func:
-			return [parseFuncDecl()];
-		
-		case return_:
-			return [parseReturnStmt()];
-		
-		default:
-			message.error(token().loc, "A statement expected, not " ~ token().str);
-			next();
-			return [];
+		if (isFirstofExpr(token().kind)) {
+			return [parseExprStmt()];
 		}
+		else if (isFirstofDecl(token().kind)) {
+			return cast(Stmt[]) parseDecls();
+		}
+		else
+			with (TOK)
+			switch (token().kind) {
+			case lblo:
+				return [parseBlockStmt()];
+			
+			case return_:
+				return [parseReturnStmt()];
+			
+			default:
+				message.error(token().loc, "A statement expected, not " ~ token().str);
+				next();
+				return [];
+			}
+	}
+	
+	ExprStmt parseExprStmt() {
+		auto loc = token().loc;
+		
+		auto expr = parseExpr();
+		
+		check(TOK.semcol);
+		
+		return new ExprStmt(expr, loc);
+	}
+	
+	BlockStmt parseBlockStmt() {
+		auto loc = token().loc;
+		check(TOK.lblo);
+		
+		Stmt[] stmts;
+		while (isFirstofStmt(token().kind)) {
+			stmts ~= parseStmt();
+		}
+		
+		check(TOK.rblo);
+		
+		return new BlockStmt(stmts, loc);
 	}
 	
 	ReturnStmt parseReturnStmt() {
@@ -358,11 +363,12 @@ class Parser {
 	Decl:
 		LetDecl
 		FuncDecl
+		StructDecl
 	*/
 	
 	static bool isFirstofDecl(TOK kind) {
 		with (TOK)
-		return kind.among!(let, func) != 0;
+		return kind.among!(let, func, struct_) != 0;
 	}
 	
 	Decl[] parseDecls() {
@@ -377,6 +383,10 @@ class Parser {
 		
 		case func:
 			decls ~= parseFuncDecl();
+			break;
+		
+		case struct_:
+			decls ~= parseStructDecl();
 			break;
 		
 		default:
@@ -395,11 +405,19 @@ class Parser {
 			auto idtk = token();
 			next();
 			
-			check(ass);
+			Type type;
+			if (token().kind == col) {
+				next();
+				type = parseType();
+			}
 			
-			auto exp = parseExpr();
+			Expr expr;
+			if (token.kind == ass) {
+				next();
+				expr = parseExpr();
+			}
 			
-			result ~= new LetDecl(idtk, exp, loc);
+			result ~= new LetDecl(idtk, expr, type, loc);
 			
 			if (token().kind == com) next(); 
 		}
@@ -425,21 +443,39 @@ class Parser {
 		while (token().kind == TOK.id) {
 			auto arg = token();
 			next();
-			
-			args ~= new ArgDecl(arg);
-			
+			check(TOK.col);
+			auto type = parseType();
+			args ~= new ArgDecl(arg, type);
 			if (token().kind == TOK.com) next(); 
 		}
 		
 		check(TOK.rpar);
 		
-		auto body = parseBlockExpr();
-		body.is_func_body = true;
-		// if the function body ends with an expression value, then rewrite it to the return statement
-		if (body.has_value) {
-			body.stmts[$-1] = new ReturnStmt(body.last_expr, body.stmts[$-1].loc);
+		auto body = parseBlockStmt();
+		
+		return new FuncDecl(id, args, body, loc);
+	}
+	
+	StructDecl parseStructDecl() {
+		auto loc = token().loc;
+		check(TOK.struct_);
+		
+		if (token().kind != TOK.id) {
+			message.error(token().loc, "An identifier expected after struct, not " ~ token().str);
+			return null;
+		}
+		Token id = token();
+		next();
+				
+		check(TOK.lblo);
+		
+		Decl[] decls;
+		while (isFirstofDecl(token().kind)) {
+			decls ~= parseDecls();
 		}
 		
-		return new FuncDecl(id, args, body);
+		check(TOK.rblo);
+		
+		return new StructDecl(id, decls, loc);
 	}
 }
